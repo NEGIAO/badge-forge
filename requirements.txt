@@ -1,0 +1,5 @@
+# 刻意不用 uvicorn[standard]：uvloop/httptools 会多占十几 MB，
+# 本服务目标机器只有 841MB 内存且要与其他服务共存。
+fastapi>=0.115,<1.0
+uvicorn>=0.30,<1.0
+httpx>=0.27,<1.0

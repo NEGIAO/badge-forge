@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+  <meta name="description" content="badge-forge：三列 SVG 徽章生成器，图标 / 文字 / 数据，纯 URL 参数配置。" />
+  <meta name="color-scheme" content="light dark" />
+  <title>badge-forge · 三列 SVG 徽章</title>
+  <link rel="stylesheet" href="style.css?v=2" />
+  <script>
+    /* 首帧前定主题，避免闪白。优先级：?theme= 参数 > 上次选择 > 系统偏好 */
+    (function () {
+      try {
+        var forced = new URLSearchParams(location.search).get('theme');
+        var saved = localStorage.getItem('badge-forge-theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = (forced === 'light' || forced === 'dark')
+          ? forced
+          : (saved || (prefersDark ? 'dark' : 'light'));
+        if (forced === 'light' || forced === 'dark') localStorage.setItem('badge-forge-theme', forced);
+        document.documentElement.dataset.theme = theme;
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="1" y="7" width="13" height="18" rx="4" fill="currentColor" opacity=".26" />
+          <rect x="9" y="7" width="14" height="18" rx="4" fill="currentColor" opacity=".55" />
+          <rect x="17" y="7" width="14" height="18" rx="4" fill="currentColor" />
+        </svg>
+        <div class="brand-text">
+          <h1>badge-forge</h1>
+          <p class="tagline">三列 SVG 徽章 · 图标 / 文字 / 数据</p>
+        </div>
+      </div>
+      <nav class="actions">
+        <a class="link-btn" href="api/docs" target="_blank" rel="noreferrer">API 文档</a>
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.6v2.4M12 19v2.4M2.6 12h2.4M19 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7" />
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z" />
+          </svg>
+        </button>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section class="card">
+        <div class="card-head">
+          <h2>配置</h2>
+          <div class="head-actions">
+            <span class="card-note">改动即时预览</span>
+            <button class="mini-btn" type="button" data-reset>重置</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="f-icon">图标 URL</label>
+          <input id="f-icon" type="url" inputmode="url" spellcheck="false"
+                 placeholder="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/github.svg" />
+          <p class="hint">可选。单色 SVG 自动白化；PNG/JPEG/GIF/WEBP 亦可，上限 48KB。</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="f-text">文字</label>
+          <input id="f-text" type="text" maxlength="40" placeholder="今日访客" />
+          <p class="hint">中间列，留空则该列不渲染。</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="f-data">数据 URL</label>
+          <input id="f-data" type="url" inputmode="url" spellcheck="false"
+                 placeholder="https://api.negiao.cn/api/51la" />
+          <p class="hint">右侧数值来源，支持 JSON 与纯文本。</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="f-query">JSON 路径</label>
+          <input id="f-query" type="text" spellcheck="false" placeholder="$.metrics.todayUsers" />
+          <p class="hint">如 <code>$.metrics.todayUsers</code>；留空则自动取 message / value / total。</p>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="f-format">数值格式</label>
+            <select id="f-format">
+              <option value="comma">千分位 · 79,782</option>
+              <option value="plain">原样 · 79782</option>
+              <option value="compact">压缩 · 7.98万</option>
+              <option value="time">时间 · 10-28 12:04</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="f-h">高度 <output id="o-h">20</output> px</label>
+            <input id="f-h" type="range" min="16" max="32" step="1" value="20" />
+          </div>
+        </div>
+
+        <div class="row row-3">
+          <div class="field">
+            <label class="label" for="f-ibg">图标底色</label>
+            <div class="swatch">
+              <input id="f-ibg" type="color" value="#555555" aria-label="图标底色" />
+              <input id="f-ibg-text" type="text" spellcheck="false" value="#555555" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="f-lbg">文字底色</label>
+            <div class="swatch">
+              <input id="f-lbg" type="color" value="#555555" aria-label="文字底色" />
+              <input id="f-lbg-text" type="text" spellcheck="false" value="#555555" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="f-rbg">数值底色</label>
+            <div class="swatch">
+              <input id="f-rbg" type="color" value="#4caf50" aria-label="数值底色" />
+              <input id="f-rbg-text" type="text" spellcheck="false" value="#4caf50" />
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="f-r">圆角 <output id="o-r">3</output> px</label>
+            <input id="f-r" type="range" min="0" max="10" step="1" value="3" />
+          </div>
+          <div class="field field-inline">
+            <label class="check" for="f-gloss">
+              <input id="f-gloss" type="checkbox" checked />
+              <span>顶部高光</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="presets">
+          <span class="presets-label">预设</span>
+          <div id="presets" class="chips"></div>
+        </div>
+      </section>
+
+      <section class="card card-preview">
+        <div class="card-head">
+          <h2>预览</h2>
+          <div class="head-actions">
+            <span class="card-note" id="meta">—</span>
+            <button class="mini-btn" type="button" data-zoom aria-pressed="true">2×</button>
+          </div>
+        </div>
+
+        <div class="stage" id="stage">
+          <img id="preview" alt="徽章预览" />
+        </div>
+        <p id="stage-error" class="stage-error" hidden></p>
+
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>图片 URL</span>
+            <button type="button" data-copy="out-url">复制</button>
+          </div>
+          <textarea id="out-url" readonly rows="3" spellcheck="false"></textarea>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>Markdown</span>
+            <button type="button" data-copy="out-md">复制</button>
+          </div>
+          <textarea id="out-md" readonly rows="2" spellcheck="false"></textarea>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>HTML</span>
+            <button type="button" data-copy="out-html">复制</button>
+          </div>
+          <textarea id="out-html" readonly rows="2" spellcheck="false"></textarea>
+        </div>
+      </section>
+    </main>
+
+    <section class="card card-docs">
+      <div class="card-head">
+        <h2>参数说明</h2>
+        <span class="card-note">除 data 外均有合理默认</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>参数</th><th>说明</th><th>默认</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>icon</code></td><td>左侧图标 URL，服务端抓取后内联为 data URI；单色 SVG 自动补白</td><td>—</td></tr>
+            <tr><td><code>text</code></td><td>中间文字，最长 40 字符；留空则该列不渲染</td><td>—</td></tr>
+            <tr><td><code>data</code></td><td>右侧数值来源 URL；留空时整列省略</td><td>—</td></tr>
+            <tr><td><code>query</code></td><td>简化 JSONPath：<code>$.a.b</code>、<code>$.list[0].name</code></td><td>自动取 message / value / total</td></tr>
+            <tr><td><code>format</code></td><td><code>comma</code> / <code>plain</code> / <code>compact</code> / <code>time</code></td><td><code>comma</code></td></tr>
+            <tr><td><code>ibg</code> <code>lbg</code> <code>rbg</code></td><td>图标 / 文字 / 数值三列底色，命名色或 <code>#rgb</code>、<code>#rrggbb</code></td><td><code>#555555</code> · <code>#555555</code> · <code>#4caf50</code></td></tr>
+            <tr><td><code>h</code> <code>r</code></td><td>高度 16~32 px（字号按比例缩放）、圆角 0~h/2</td><td><code>20</code> · <code>3</code></td></tr>
+            <tr><td><code>gloss</code></td><td><code>0</code> 关闭顶部高光</td><td>开启</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        取数失败时仍返回 HTTP 200，右侧显示 <code>n/a</code> —— 避免 README 出现破图；
+        该响应带 <code>no-store</code>，下次请求立即重试。
+      </p>
+    </section>
+
+    <footer class="footer">
+      <span>badge-forge <span id="ver">v1.0.0</span></span>
+      <span>MIT License · 数据由上游接口提供，本服务不做存储</span>
+    </footer>
+  </div>
+
+  <!-- 改 CSS/JS 时必须同步改上面的 ?v=：vpn.negiao.cn 的 .css/.js 会被 CF 按扩展名
+       缓存 7 天（Cache Static Assets 规则），只有换 URL 才能让读者立刻拿到新版 -->
+  <script src="app.js?v=2"></script>
+</body>
+</html>
