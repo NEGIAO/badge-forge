@@ -61,8 +61,18 @@ def build_theme(color: str = "", bg: str = "", point: str = "") -> dict[str, str
     return theme
 
 
-def _chartist_css(theme: dict[str, str]) -> str:
-    """Chartist 的标签/网格/折线样式（含入场动画），与 Worker 版本同源。"""
+def _chartist_css(
+    theme: dict[str, str],
+    *,
+    line_width: float,
+    dot_size: float,
+    area_opacity: float,
+    grid_opacity: float,
+) -> str:
+    """Chartist 的标签/网格/折线样式（含入场动画），与 Worker 版本同源。
+
+    线宽、点径、面积与网格的透明度全部由参数注入 —— 这些是最常被调整的视觉项。
+    """
     return f"""
     .ct-label {{
       fill: #{theme['color']};
@@ -78,23 +88,23 @@ def _chartist_css(theme: dict[str, str]) -> str:
     .ct-grid {{
       stroke: #{theme['color']};
       stroke-width: 1px;
-      stroke-opacity: 0.3;
+      stroke-opacity: {grid_opacity:g};
       stroke-dasharray: 2px;
     }}
     .ct-point {{
-      stroke-width: 10px;
+      stroke-width: {dot_size:g}px;
       stroke-linecap: round;
       stroke: #{theme['point']};
       animation: blink 1s ease-in-out forwards;
     }}
     .ct-line {{
-      stroke-width: 4px;
+      stroke-width: {line_width:g}px;
       stroke-dasharray: 5000;
       stroke-dashoffset: 5000;
       stroke: #{theme['line']};
       animation: dash 5s ease-in-out forwards;
     }}
-    .ct-area {{ stroke: none; fill-opacity: 0.1; }}
+    .ct-area {{ stroke: none; fill-opacity: {area_opacity:g}; }}
     .ct-series-a .ct-area {{ fill: #{theme['area']}; }}
     @keyframes blink {{
       from {{ opacity: 0; transform: translateX(-20px); }}
@@ -115,6 +125,10 @@ def render_activity_graph(
     bg: str = "",
     point: str = "",
     width: int = DEFAULT_WIDTH,
+    line_width: float = 4.0,
+    dot_size: float = 10.0,
+    area_opacity: float = 0.1,
+    grid_opacity: float = 0.3,
 ) -> str:
     """渲染 GitHub 贡献活动图。
 
@@ -125,10 +139,18 @@ def render_activity_graph(
       hide_title    —— 隐藏标题（画布高度不变，只是不画）
       color / bg / point —— 配色覆盖，取值 `#rrggbb` 或 `rrggbb`
       width         —— 画布宽度 800~1600，高度固定 420
+      line_width    —— 折线宽度 1~12 px
+      dot_size      —— 数据点直径 0~24 px（0 = 不画点）
+      area_opacity  —— 面积填充透明度 0~1
+      grid_opacity  —— 网格线透明度 0~1
     返回：SVG 字符串。
     """
     width = max(800, min(1600, int(width)))
     height = DEFAULT_HEIGHT
+    line_width = max(1.0, min(12.0, float(line_width)))
+    dot_size = max(0.0, min(24.0, float(dot_size)))
+    area_opacity = max(0.0, min(1.0, float(area_opacity)))
+    grid_opacity = max(0.0, min(1.0, float(grid_opacity)))
     theme = build_theme(color, bg, point)
 
     values = [int(item.get("count") or 0) for item in contributions]
@@ -202,7 +224,8 @@ def render_activity_graph(
     <rect id="cardBg" x="0" y="0" rx="0" height="100%" width="100%" fill="#{theme['bg']}" fill-opacity="1" stroke-opacity="1" style="stroke:#{theme['border']}; stroke-width:1;"/>
     <style>
       svg {{ font: 600 18px 'Segoe UI', Ubuntu, sans-serif; user-select: none; }}
-      {_chartist_css(theme)}
+      {_chartist_css(theme, line_width=line_width, dot_size=dot_size,
+                     area_opacity=area_opacity, grid_opacity=grid_opacity)}
     </style>
     {heading_el}
     <g class="ct-grids">

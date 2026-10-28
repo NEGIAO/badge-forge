@@ -443,8 +443,16 @@ const gEl = {
   bg: $('g-bg-text'),
   point: $('g-point-text'),
   hide: $('g-hide'),
+  line: $('g-line'),
+  dot: $('g-dot'),
+  area: $('g-area'),
+  grid: $('g-grid'),
   outDays: $('g-out-days'),
   outWidth: $('g-out-width'),
+  outLine: $('g-out-line'),
+  outDot: $('g-out-dot'),
+  outArea: $('g-out-area'),
+  outGrid: $('g-out-grid'),
   stage: $('graph-stage'),
   preview: $('graph-preview'),
   error: $('graph-error'),
@@ -455,7 +463,10 @@ const gEl = {
   outHtml: $('out-graph-html'),
 };
 
-const GRAPH_DEFAULTS = { days: 31, width: 1200, color: '#70a5fd', bg: '#1a1b27', point: '#a9b1d6' };
+const GRAPH_DEFAULTS = {
+  days: 31, width: 1200, color: '#70a5fd', bg: '#1a1b27', point: '#a9b1d6',
+  line: 4, dot: 10, area: 10, grid: 30,
+};
 const GRAPH_STORE = 'badge-forge-graph:v1';
 const GRAPH_PRESETS = [
   { name: 'tokyo-night', color: '#70a5fd', bg: '#1a1b27', point: '#a9b1d6' },
@@ -472,6 +483,10 @@ let githubEnabled = true;
 function syncGraphReadouts() {
   gEl.outDays.textContent = gEl.days.value;
   gEl.outWidth.textContent = gEl.width.value;
+  gEl.outLine.textContent = gEl.line.value;
+  gEl.outDot.textContent = gEl.dot.value;
+  gEl.outArea.textContent = gEl.area.value;
+  gEl.outGrid.textContent = gEl.grid.value;
 }
 
 function buildGraphQuery() {
@@ -484,6 +499,11 @@ function buildGraphQuery() {
   if (Number(gEl.width.value) !== GRAPH_DEFAULTS.width) params.set('width', gEl.width.value);
   if (title) params.set('custom_title', title);
   if (gEl.hide.checked) params.set('hide_title', '1');
+
+  // 视觉参数：只输出与默认值不同的项
+  [['line', 'line'], ['dot', 'dot'], ['area', 'area'], ['grid', 'grid']].forEach(([key, param]) => {
+    if (Number(gEl[key].value) !== GRAPH_DEFAULTS[key]) params.set(param, gEl[key].value);
+  });
 
   ['color', 'bg', 'point'].forEach((key) => {
     const value = gEl[key].value.trim().toLowerCase();
@@ -502,6 +522,10 @@ function graphSnapshot() {
     bg: gEl.bg.value,
     point: gEl.point.value,
     hide: gEl.hide.checked,
+    line: gEl.line.value,
+    dot: gEl.dot.value,
+    area: gEl.area.value,
+    grid: gEl.grid.value,
   };
 }
 
@@ -513,6 +537,9 @@ function applyGraphState(saved) {
   gEl.days.value = saved.days || GRAPH_DEFAULTS.days;
   gEl.width.value = saved.width || GRAPH_DEFAULTS.width;
   gEl.hide.checked = Boolean(saved.hide);
+  ['line', 'dot', 'area', 'grid'].forEach((key) => {
+    gEl[key].value = saved[key] || GRAPH_DEFAULTS[key];
+  });
   ['color', 'bg', 'point'].forEach((key) => {
     const value = saved[key] || GRAPH_DEFAULTS[key];
     gEl[key].value = value;
@@ -597,7 +624,7 @@ function scheduleGraphRender() {
 
 function bindGraph() {
   [gEl.user, gEl.title].forEach((input) => input.addEventListener('input', scheduleGraphRender));
-  [gEl.days, gEl.width].forEach((input) =>
+  [gEl.days, gEl.width, gEl.line, gEl.dot, gEl.area, gEl.grid].forEach((input) =>
     input.addEventListener('input', () => {
       syncGraphReadouts();
       scheduleGraphRender();

@@ -81,6 +81,33 @@ class RenderTests(unittest.TestCase):
         self.assertIn("ct-point", svg)
 
 
+class StyleParamTests(unittest.TestCase):
+    def test_line_width_applied(self):
+        svg = render_activity_graph("x", SERIES, line_width=9)
+        self.assertIn("stroke-width: 9px", svg)
+
+    def test_line_width_clamped(self):
+        self.assertIn("stroke-width: 12px", render_activity_graph("x", SERIES, line_width=99))
+        self.assertIn("stroke-width: 1px", render_activity_graph("x", SERIES, line_width=-5))
+
+    def test_dot_size_zero_hides_points(self):
+        svg = render_activity_graph("x", SERIES, dot_size=0)
+        self.assertIn("stroke-width: 0px", svg)
+
+    def test_dot_size_clamped(self):
+        self.assertIn("stroke-width: 24px", render_activity_graph("x", SERIES, dot_size=99))
+
+    def test_area_and_grid_opacity(self):
+        svg = render_activity_graph("x", SERIES, area_opacity=0.5, grid_opacity=0.8)
+        self.assertIn("fill-opacity: 0.5", svg)
+        self.assertIn("stroke-opacity: 0.8", svg)
+
+    def test_opacity_clamped(self):
+        svg = render_activity_graph("x", SERIES, area_opacity=5, grid_opacity=-1)
+        self.assertIn("fill-opacity: 1", svg)
+        self.assertIn("stroke-opacity: 0", svg)
+
+
 class NoticeTests(unittest.TestCase):
     def test_notice_contains_text(self):
         svg = render_notice("未配置 GITHUB_TOKEN", "详见 README")

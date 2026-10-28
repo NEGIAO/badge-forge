@@ -140,6 +140,10 @@ https://vpn.negiao.cn/badge/activity-graph?username=NEGIAO&days=31
 | `bg` | 背景色 | `1a1b27` |
 | `point` | 数据点颜色 | `a9b1d6` |
 | `width` | 画布宽 800~1600，高固定 420 | `1200` |
+| `line` | 折线宽度 1~12 px | `4` |
+| `dot` | 数据点直径 0~24 px（`0` = 不画点） | `10` |
+| `area` | 面积填充透明度，百分比 0~100 | `10` |
+| `grid` | 网格线透明度，百分比 0~100 | `30` |
 
 ### 必须配一个 GitHub Token
 

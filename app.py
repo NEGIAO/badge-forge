@@ -276,11 +276,16 @@ async def activity_graph(
     bg: str = "",
     point: str = "",
     width: str = "",
+    line: str = "",
+    dot: str = "",
+    area: str = "",
+    grid: str = "",
 ) -> Response:
     """渲染 GitHub 贡献活动图（移植自 negiao-api Worker 的同名端点）。
 
     参数：username（必填）、days（7~90，默认 31）、hide_title、custom_title、
-          color / bg / point（`#rrggbb` 或 `rrggbb`）、width（800~1600，默认 1200）。
+          color / bg / point（`#rrggbb` 或 `rrggbb`）、width（800~1600，默认 1200）、
+          line（线宽 1~12）、dot（点径 0~24，0 = 不画点）、area / grid（透明度百分比 0~100）。
     返回：`image/svg+xml`。取数失败或未配 Token 时返回**说明性 SVG**（仍 200），
           因为该端点主要被 `<img>` 引用，返回 JSON 只会变成一张破图。
     """
@@ -289,6 +294,10 @@ async def activity_graph(
     canvas = _int_param(width, 1200, 800, 1600)
     title = custom_title.strip()[:60]
     plain_title = _truthy(hide_title, default=False)
+    line_width = _int_param(line, 4, 1, 12)
+    dot_size = _int_param(dot, 10, 0, 24)
+    area_opacity = _int_param(area, 10, 0, 100) / 100
+    grid_opacity = _int_param(grid, 30, 0, 100) / 100
 
     if not name:
         return _notice_response("缺少 username 参数", "示例：/activity-graph?username=NEGIAO&days=31")
@@ -299,7 +308,10 @@ async def activity_graph(
             "在 /etc/badge-forge.env 设置只读 PAT 后重启服务（详见 README）",
         )
 
-    cache_key = f"graph|{name.lower()}|{span}|{canvas}|{int(plain_title)}|{title}|{color}|{bg}|{point}"
+    cache_key = (
+        f"graph|{name.lower()}|{span}|{canvas}|{int(plain_title)}|{title}|"
+        f"{color}|{bg}|{point}|{line_width}|{dot_size}|{area_opacity}|{grid_opacity}"
+    )
     cached = _svg_cache.get(cache_key)
     if cached is not None:
         return Response(
@@ -326,6 +338,10 @@ async def activity_graph(
         bg=bg,
         point=point,
         width=canvas,
+        line_width=line_width,
+        dot_size=dot_size,
+        area_opacity=area_opacity,
+        grid_opacity=grid_opacity,
     )
     _svg_cache.set(cache_key, svg, config.CHART_SVG_CACHE_TTL)
 
