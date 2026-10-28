@@ -23,6 +23,8 @@ from fastapi.staticfiles import StaticFiles
 
 import config
 from core.cache import TTLCache
+from core.chart import render_activity_graph, render_notice
+from core.github import GithubError, fetch_contributions
 from core.render import BadgeSpec, normalize_color, render
 from core.source import (
     SourceError,
@@ -79,6 +81,7 @@ async def api_docs():
 _value_cache = TTLCache(config.CACHE_MAXSIZE)
 _icon_cache = TTLCache(256)
 _svg_cache = TTLCache(config.CACHE_MAXSIZE)
+_chart_data_cache = TTLCache(256)  # GitHub 贡献序列：一天只变一次，6h 足够
 
 PRESETS = [
     {
@@ -261,6 +264,96 @@ async def badge(
     return Response(content=svg, media_type="image/svg+xml; charset=utf-8", headers=headers)
 
 
+@app.get("/activity-graph")
+@app.get("/api/activity-graph.svg")
+async def activity_graph(
+    request: Request,
+    username: str = "",
+    days: str = "",
+    hide_title: str = "",
+    custom_title: str = "",
+    color: str = "",
+    bg: str = "",
+    point: str = "",
+    width: str = "",
+) -> Response:
+    """渲染 GitHub 贡献活动图（移植自 negiao-api Worker 的同名端点）。
+
+    参数：username（必填）、days（7~90，默认 31）、hide_title、custom_title、
+          color / bg / point（`#rrggbb` 或 `rrggbb`）、width（800~1600，默认 1200）。
+    返回：`image/svg+xml`。取数失败或未配 Token 时返回**说明性 SVG**（仍 200），
+          因为该端点主要被 `<img>` 引用，返回 JSON 只会变成一张破图。
+    """
+    name = username.strip()
+    span = _int_param(days, 31, 7, 90)
+    canvas = _int_param(width, 1200, 800, 1600)
+    title = custom_title.strip()[:60]
+    plain_title = _truthy(hide_title, default=False)
+
+    if not name:
+        return _notice_response("缺少 username 参数", "示例：/activity-graph?username=NEGIAO&days=31")
+
+    if not config.GITHUB_TOKEN:
+        return _notice_response(
+            "未配置 GITHUB_TOKEN",
+            "在 /etc/badge-forge.env 设置只读 PAT 后重启服务（详见 README）",
+        )
+
+    cache_key = f"graph|{name.lower()}|{span}|{canvas}|{int(plain_title)}|{title}|{color}|{bg}|{point}"
+    cached = _svg_cache.get(cache_key)
+    if cached is not None:
+        return Response(
+            content=cached,
+            media_type="image/svg+xml; charset=utf-8",
+            headers={"X-Cache-Status": "HIT", "Cache-Control": f"public, max-age={config.CHART_SVG_CACHE_TTL}"},
+        )
+
+    try:
+        payload = _chart_data_cache.get(f"{name.lower()}|{span}")
+        if payload is None:
+            payload = await fetch_contributions(name, span, config.GITHUB_TOKEN, timeout=config.GITHUB_TIMEOUT)
+            _chart_data_cache.set(f"{name.lower()}|{span}", payload, config.CHART_DATA_CACHE_TTL)
+    except GithubError as exc:
+        logger.warning("activity graph failed %s: %s", name, exc)
+        return _notice_response("活动图取数失败", exc.public)
+
+    svg = render_activity_graph(
+        payload["name"],
+        payload["contributions"],
+        title=title,
+        hide_title=plain_title,
+        color=color,
+        bg=bg,
+        point=point,
+        width=canvas,
+    )
+    _svg_cache.set(cache_key, svg, config.CHART_SVG_CACHE_TTL)
+
+    etag = 'W/"' + hashlib.sha1(svg.encode("utf-8")).hexdigest()[:20] + '"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    return Response(
+        content=svg,
+        media_type="image/svg+xml; charset=utf-8",
+        headers={
+            "ETag": etag,
+            "X-Cache-Status": "MISS",
+            "Cache-Control": f"public, max-age={config.CHART_SVG_CACHE_TTL}, s-maxage={config.CHART_SVG_CACHE_TTL}",
+            "CDN-Cache-Control": f"max-age={config.CHART_SVG_CACHE_TTL}",
+        },
+    )
+
+
+def _notice_response(heading: str, detail: str) -> Response:
+    """说明性 SVG：不缓存，让配置修好后立刻生效。"""
+    return Response(
+        content=render_notice(heading, detail),
+        media_type="image/svg+xml; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Cache-Status": "ERROR"},
+    )
+
+
 @app.get("/api/config")
 async def api_config() -> JSONResponse:
     """配置页需要的元信息：默认值、边界、预设、当前实例限制。"""
@@ -279,6 +372,19 @@ async def api_config() -> JSONResponse:
             "publicBaseUrl": config.PUBLIC_BASE_URL,
             "allowedHosts": sorted(config.ALLOWED_HOSTS),
             "presets": PRESETS,
+            # 活动图需要只读 PAT；没配时前端把该 tab 标成不可用，而不是让用户撞一张报错图
+            "github": {
+                "enabled": bool(config.GITHUB_TOKEN),
+                "chartDefaults": {
+                    "username": "NEGIAO",
+                    "days": 31,
+                    "width": 1200,
+                    "color": "#70a5fd",
+                    "bg": "#1a1b27",
+                    "point": "#a9b1d6",
+                },
+                "chartLimits": {"days": [7, 90], "width": [800, 1600]},
+            },
         }
     )
 

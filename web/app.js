@@ -432,6 +432,229 @@ async function loadMeta() {
   }
 }
 
+/* ── 活动图 ───────────────────────────────────────────────── */
+
+const gEl = {
+  user: $('g-user'),
+  title: $('g-title'),
+  days: $('g-days'),
+  width: $('g-width'),
+  color: $('g-color-text'),
+  bg: $('g-bg-text'),
+  point: $('g-point-text'),
+  hide: $('g-hide'),
+  outDays: $('g-out-days'),
+  outWidth: $('g-out-width'),
+  stage: $('graph-stage'),
+  preview: $('graph-preview'),
+  error: $('graph-error'),
+  meta: $('graph-meta'),
+  presets: $('g-presets'),
+  outUrl: $('out-graph-url'),
+  outMd: $('out-graph-md'),
+  outHtml: $('out-graph-html'),
+};
+
+const GRAPH_DEFAULTS = { days: 31, width: 1200, color: '#70a5fd', bg: '#1a1b27', point: '#a9b1d6' };
+const GRAPH_STORE = 'badge-forge-graph:v1';
+const GRAPH_PRESETS = [
+  { name: 'tokyo-night', color: '#70a5fd', bg: '#1a1b27', point: '#a9b1d6' },
+  { name: 'GitHub 深色', color: '#40c463', bg: '#0d1117', point: '#c9d1d9' },
+  { name: '浅色', color: '#1f6feb', bg: '#ffffff', point: '#57606a' },
+  { name: '暖炭', color: '#d97757', bg: '#1b1a17', point: '#f4f0e6' },
+];
+
+let graphSeq = 0;
+let graphTimer = null;
+let graphObjectUrl = null;
+let githubEnabled = true;
+
+function syncGraphReadouts() {
+  gEl.outDays.textContent = gEl.days.value;
+  gEl.outWidth.textContent = gEl.width.value;
+}
+
+function buildGraphQuery() {
+  const params = new URLSearchParams();
+  const user = gEl.user.value.trim();
+  const title = gEl.title.value.trim();
+
+  if (user) params.set('username', user);
+  if (Number(gEl.days.value) !== GRAPH_DEFAULTS.days) params.set('days', gEl.days.value);
+  if (Number(gEl.width.value) !== GRAPH_DEFAULTS.width) params.set('width', gEl.width.value);
+  if (title) params.set('custom_title', title);
+  if (gEl.hide.checked) params.set('hide_title', '1');
+
+  ['color', 'bg', 'point'].forEach((key) => {
+    const value = gEl[key].value.trim().toLowerCase();
+    if (value && value !== GRAPH_DEFAULTS[key]) params.set(key, value);
+  });
+  return params.toString();
+}
+
+function graphSnapshot() {
+  return {
+    user: gEl.user.value,
+    title: gEl.title.value,
+    days: gEl.days.value,
+    width: gEl.width.value,
+    color: gEl.color.value,
+    bg: gEl.bg.value,
+    point: gEl.point.value,
+    hide: gEl.hide.checked,
+  };
+}
+
+function applyGraphState(saved) {
+  if (!saved) return;
+  // user 只在显式传入时才覆盖 —— 否则「先设默认用户名、再套配色」的调用会被清空
+  if (saved.user !== undefined) gEl.user.value = saved.user;
+  if (saved.title !== undefined) gEl.title.value = saved.title;
+  gEl.days.value = saved.days || GRAPH_DEFAULTS.days;
+  gEl.width.value = saved.width || GRAPH_DEFAULTS.width;
+  gEl.hide.checked = Boolean(saved.hide);
+  ['color', 'bg', 'point'].forEach((key) => {
+    const value = saved[key] || GRAPH_DEFAULTS[key];
+    gEl[key].value = value;
+    $(`g-${key}`).value = toHex(value);
+  });
+  syncGraphReadouts();
+}
+
+function persistGraph() {
+  try {
+    localStorage.setItem(GRAPH_STORE, JSON.stringify(graphSnapshot()));
+  } catch {
+    /* 忽略 */
+  }
+}
+
+function restoreGraph() {
+  try {
+    const raw = localStorage.getItem(GRAPH_STORE);
+    if (!raw) return false;
+    applyGraphState(JSON.parse(raw));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function applyGraphPreset(preset) {
+  ['color', 'bg', 'point'].forEach((key) => {
+    gEl[key].value = preset[key];
+    $(`g-${key}`).value = preset[key];
+  });
+  renderGraph();
+}
+
+async function renderGraph() {
+  const seq = ++graphSeq;
+  const qs = buildGraphQuery();
+  const suffix = qs ? `?${qs}` : '';
+  const absolute = `${badgeBase}/activity-graph${suffix}`;
+
+  setText(gEl.outUrl, absolute);
+  setText(gEl.outMd, `![Contribution Graph](${absolute})`);
+  setText(gEl.outHtml, `<img src="${absolute}" alt="Contribution Graph" width="100%" />`);
+  persistGraph();
+
+  gEl.error.hidden = true;
+  try {
+    const response = await fetch(`activity-graph${suffix}`, {
+      headers: { Accept: 'image/svg+xml' },
+      cache: 'no-store',
+    });
+    const svg = await response.text();
+    if (seq !== graphSeq) return;
+
+    if (graphObjectUrl) URL.revokeObjectURL(graphObjectUrl);
+    graphObjectUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    gEl.preview.src = graphObjectUrl;
+
+    const cacheStatus = response.headers.get('x-cache-status') || '-';
+    gEl.meta.textContent = `HTTP ${response.status} · ${cacheStatus} · ${svg.length} 字节`;
+
+    // 服务端在「未配 Token / 取数失败」时返回的是说明性 SVG，用这个头区分
+    if (cacheStatus === 'ERROR') {
+      gEl.error.hidden = false;
+      gEl.error.textContent = githubEnabled
+        ? '渲染失败：用户名不存在、Token 失效或 GitHub 暂时不可达。'
+        : '未配置 GITHUB_TOKEN：在服务器 /etc/badge-forge.env 设置只读 PAT 后重启服务。';
+    }
+  } catch (error) {
+    if (seq !== graphSeq) return;
+    gEl.error.hidden = false;
+    gEl.error.textContent = `请求失败：${error.message}`;
+    gEl.meta.textContent = '—';
+  }
+}
+
+function scheduleGraphRender() {
+  clearTimeout(graphTimer);
+  graphTimer = setTimeout(renderGraph, 220);
+}
+
+function bindGraph() {
+  [gEl.user, gEl.title].forEach((input) => input.addEventListener('input', scheduleGraphRender));
+  [gEl.days, gEl.width].forEach((input) =>
+    input.addEventListener('input', () => {
+      syncGraphReadouts();
+      scheduleGraphRender();
+    }),
+  );
+  gEl.hide.addEventListener('change', scheduleGraphRender);
+
+  ['color', 'bg', 'point'].forEach((key) => {
+    const picker = $(`g-${key}`);
+    picker.addEventListener('input', () => {
+      gEl[key].value = picker.value;
+      scheduleGraphRender();
+    });
+    gEl[key].addEventListener('input', () => {
+      if (/^#[0-9a-f]{6}$/i.test(gEl[key].value.trim())) picker.value = toHex(gEl[key].value);
+      scheduleGraphRender();
+    });
+  });
+
+  GRAPH_PRESETS.forEach((preset) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = preset.name;
+    button.addEventListener('click', () => applyGraphPreset(preset));
+    gEl.presets.appendChild(button);
+  });
+}
+
+/* ── Tab 切换 ─────────────────────────────────────────────── */
+
+const TAB_KEY = 'badge-forge-tab';
+let currentTab = null;
+
+function switchTab(name, shouldRender = true) {
+  document.querySelectorAll('[data-tab]').forEach((button) => {
+    button.setAttribute('aria-selected', String(button.dataset.tab === name));
+  });
+  document.querySelectorAll('[data-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.panel !== name;
+  });
+  currentTab = name;
+  try {
+    localStorage.setItem(TAB_KEY, name);
+  } catch {
+    /* 忽略 */
+  }
+  if (!shouldRender) return;
+  if (name === 'graph') renderGraph();
+  else render();
+}
+
+function bindTabs() {
+  document.querySelectorAll('[data-tab]').forEach((button) => {
+    button.addEventListener('click', () => switchTab(button.dataset.tab));
+  });
+}
+
 /* ── 启动 ─────────────────────────────────────────────────── */
 
 async function boot() {
@@ -441,16 +664,49 @@ async function boot() {
   bindThemeToggle();
   bindZoom();
   bindReset();
+  bindTabs();
+  bindGraph();
 
   const config = await loadMeta();
-  const restored = restore();
-  if (!restored && config && config.presets && config.presets.length) {
-    // 首屏给一个真实可用的例子，而不是空表单渲染出的 n/a
+  if (config && config.github) githubEnabled = config.github.enabled !== false;
+
+  // 徽章表单：有存档就恢复，否则套第一个预设（applyPreset 内部会渲染一次）
+  let badgeRendered = false;
+  if (restore()) {
+    syncReadouts();
+  } else if (config && config.presets && config.presets.length) {
     applyPreset(config.presets[0]);
-    return;
+    badgeRendered = true;
+  } else {
+    syncReadouts();
   }
-  syncReadouts();
-  render();
+
+  // 活动图表单：有存档就恢复，否则用服务端给的默认值
+  if (!restoreGraph()) {
+    const defaults = (config && config.github && config.github.chartDefaults) || {};
+    gEl.user.value = defaults.username || '';
+    applyGraphState({
+      days: defaults.days,
+      width: defaults.width,
+      color: defaults.color,
+      bg: defaults.bg,
+      point: defaults.point,
+    });
+  }
+  syncGraphReadouts();
+
+  // 回到上次所在的 tab；?tab=graph 可直接深链到活动图
+  let tab = 'badge';
+  try {
+    const fromUrl = new URLSearchParams(location.search).get('tab');
+    tab = fromUrl || localStorage.getItem(TAB_KEY) || 'badge';
+  } catch {
+    /* 忽略 */
+  }
+  if (tab !== 'badge' && tab !== 'graph') tab = 'badge';
+  switchTab(tab, false);
+  if (tab === 'graph') renderGraph();
+  else if (!badgeRendered) render();
 }
 
 boot();

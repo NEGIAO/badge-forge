@@ -63,3 +63,12 @@ DEBUG_ERRORS = _bool("BADGE_DEBUG", False)
 # 视觉默认值
 DEFAULT_HEIGHT = _int("BADGE_DEFAULT_HEIGHT", 20)
 DEFAULT_RADIUS = _int("BADGE_DEFAULT_RADIUS", 3)
+
+# ── GitHub 活动图 ─────────────────────────────────────────────────────────────
+# 只读 PAT：查询公开贡献日历，**不需要任何 scope**。留空则活动图不可用（徽章不受影响）。
+# 生产环境请放 /etc/badge-forge.env（600），由 systemd EnvironmentFile 注入，不要写进仓库。
+GITHUB_TOKEN = _str("GITHUB_TOKEN", "")
+GITHUB_TIMEOUT = _float("BADGE_GITHUB_TIMEOUT", 8.0)
+# 贡献数据一天只变一次，6 小时足够；SVG 同步缓存，避免重复渲染
+CHART_DATA_CACHE_TTL = _int("BADGE_CHART_DATA_TTL", 6 * 3600)
+CHART_SVG_CACHE_TTL = _int("BADGE_CHART_SVG_TTL", 6 * 3600)

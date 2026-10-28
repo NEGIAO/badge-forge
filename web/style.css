@@ -143,6 +143,37 @@ html[data-theme="light"] .icon-sun { display: none; }
 html[data-theme="dark"] .icon-moon { display: none; }
 
 /* ── 布局 ─────────────────────────────────────────────────── */
+/* 顶部 tab：徽章 / 活动图。后续新增渲染类型时只需再加一个按钮与一组面板 */
+.tabs {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.tab {
+  padding: 7px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.tab:hover:not([aria-selected="true"]) { color: var(--text); }
+.tab[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -377,6 +408,14 @@ input[type="range"] {
   border-radius: var(--radius-sm);
 }
 
+/* 活动图画布远大于徽章：给足高度，图片按容器宽度自适应 */
+.stage-graph {
+  min-height: 220px;
+  padding: 14px;
+  align-items: center;
+}
+.stage-graph img { width: 100%; height: auto; }
+
 /* ── 代码片段 ─────────────────────────────────────────────── */
 .snippet { margin-top: 16px; }
 .snippet-head {
@@ -406,6 +445,8 @@ input[type="range"] {
 /* ── 文档表 ───────────────────────────────────────────────── */
 .card-docs { margin-top: 20px; }
 .table-wrap { overflow-x: auto; }
+/* 文档卡里第二张表（活动图参数）与前一张留出间距 */
+.doc-sub { margin-top: 26px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th {
   padding: 0 12px 9px;

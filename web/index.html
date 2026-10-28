@@ -6,7 +6,7 @@
   <meta name="description" content="badge-forge：三列 SVG 徽章生成器，图标 / 文字 / 数据，纯 URL 参数配置。" />
   <meta name="color-scheme" content="light dark" />
   <title>badge-forge · 三列 SVG 徽章</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=5" />
   <script>
     /* 首帧前定主题，避免闪白。优先级：?theme= 参数 > 上次选择 > 系统偏好 */
     (function () {
@@ -53,10 +53,15 @@
       </nav>
     </header>
 
+    <nav class="tabs" role="tablist" aria-label="渲染类型">
+      <button class="tab" type="button" role="tab" data-tab="badge" aria-selected="true">徽章</button>
+      <button class="tab" type="button" role="tab" data-tab="graph" aria-selected="false">活动图</button>
+    </nav>
+
     <main class="workspace">
-      <section class="card">
+      <section class="card" data-panel="badge">
         <div class="card-head">
-          <h2>配置</h2>
+          <h2>徽章配置</h2>
           <div class="head-actions">
             <span class="card-note">改动即时预览</span>
             <button class="mini-btn" type="button" data-reset>重置</button>
@@ -148,9 +153,9 @@
         </div>
       </section>
 
-      <section class="card card-preview">
+      <section class="card card-preview" data-panel="badge">
         <div class="card-head">
-          <h2>预览</h2>
+          <h2>徽章预览</h2>
           <div class="head-actions">
             <span class="card-note" id="meta">—</span>
             <button class="mini-btn" type="button" data-zoom aria-pressed="true">2×</button>
@@ -184,11 +189,114 @@
           <textarea id="out-html" readonly rows="2" spellcheck="false"></textarea>
         </div>
       </section>
+
+      <section class="card" data-panel="graph" hidden>
+        <div class="card-head">
+          <h2>活动图配置</h2>
+          <div class="head-actions">
+            <span class="card-note">GitHub 贡献日历</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="g-user">GitHub 用户名</label>
+          <input id="g-user" type="text" spellcheck="false" placeholder="NEGIAO" />
+          <p class="hint">读取公开贡献日历，无需对方授权；仅字母、数字与连字符。</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="g-title">自定义标题</label>
+          <input id="g-title" type="text" maxlength="60" placeholder="留空则用「用户名's Contribution Graph」" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="g-days">天数 <output id="g-out-days">31</output></label>
+            <input id="g-days" type="range" min="7" max="90" step="1" value="31" />
+          </div>
+          <div class="field">
+            <label class="label" for="g-width">画布宽 <output id="g-out-width">1200</output> px</label>
+            <input id="g-width" type="range" min="800" max="1600" step="20" value="1200" />
+          </div>
+        </div>
+
+        <div class="row row-3">
+          <div class="field">
+            <label class="label" for="g-color">主色</label>
+            <div class="swatch">
+              <input id="g-color" type="color" value="#70a5fd" aria-label="主色" />
+              <input id="g-color-text" type="text" spellcheck="false" value="#70a5fd" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="g-bg">背景</label>
+            <div class="swatch">
+              <input id="g-bg" type="color" value="#1a1b27" aria-label="背景" />
+              <input id="g-bg-text" type="text" spellcheck="false" value="#1a1b27" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="g-point">数据点</label>
+            <div class="swatch">
+              <input id="g-point" type="color" value="#a9b1d6" aria-label="数据点颜色" />
+              <input id="g-point-text" type="text" spellcheck="false" value="#a9b1d6" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field field-inline">
+          <label class="check" for="g-hide">
+            <input id="g-hide" type="checkbox" />
+            <span>隐藏标题</span>
+          </label>
+        </div>
+
+        <div class="presets">
+          <span class="presets-label">配色预设</span>
+          <div id="g-presets" class="chips"></div>
+        </div>
+      </section>
+
+      <section class="card card-preview" data-panel="graph" hidden>
+        <div class="card-head">
+          <h2>活动图预览</h2>
+          <div class="head-actions">
+            <span class="card-note" id="graph-meta">—</span>
+          </div>
+        </div>
+
+        <div class="stage stage-graph" id="graph-stage">
+          <img id="graph-preview" alt="活动图预览" />
+        </div>
+        <p id="graph-error" class="stage-error" hidden></p>
+
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>图片 URL</span>
+            <button type="button" data-copy="out-graph-url">复制</button>
+          </div>
+          <textarea id="out-graph-url" readonly rows="3" spellcheck="false"></textarea>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>Markdown</span>
+            <button type="button" data-copy="out-graph-md">复制</button>
+          </div>
+          <textarea id="out-graph-md" readonly rows="2" spellcheck="false"></textarea>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>HTML</span>
+            <button type="button" data-copy="out-graph-html">复制</button>
+          </div>
+          <textarea id="out-graph-html" readonly rows="2" spellcheck="false"></textarea>
+        </div>
+      </section>
     </main>
 
     <section class="card card-docs">
       <div class="card-head">
-        <h2>参数说明</h2>
+        <h2>徽章参数</h2>
         <span class="card-note">除 data 外均有合理默认</span>
       </div>
       <div class="table-wrap">
@@ -208,6 +316,26 @@
           </tbody>
         </table>
       </div>
+
+      <div class="card-head doc-sub">
+        <h2>活动图参数</h2>
+        <span class="card-note">需要服务端配置 GITHUB_TOKEN</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>参数</th><th>说明</th><th>默认</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>username</code></td><td>GitHub 登录名，读取公开贡献日历，无需对方授权</td><td>必填</td></tr>
+            <tr><td><code>days</code></td><td>7~90 天</td><td><code>31</code></td></tr>
+            <tr><td><code>custom_title</code></td><td>自定义标题，最长 60 字符</td><td><code>{name}'s Contribution Graph</code></td></tr>
+            <tr><td><code>hide_title</code></td><td><code>1</code> / <code>true</code> 隐藏标题</td><td>关闭</td></tr>
+            <tr><td><code>color</code> <code>bg</code> <code>point</code></td><td>主色 / 背景 / 数据点颜色，<code>#rrggbb</code> 或 <code>rrggbb</code></td><td>tokyo-night</td></tr>
+            <tr><td><code>width</code></td><td>画布宽 800~1600，高度固定 420</td><td><code>1200</code></td></tr>
+          </tbody>
+        </table>
+      </div>
       <p class="note">
         取数失败时仍返回 HTTP 200，右侧显示 <code>n/a</code> —— 避免 README 出现破图；
         该响应带 <code>no-store</code>，下次请求立即重试。
@@ -222,6 +350,6 @@
 
   <!-- 改 CSS/JS 时必须同步改上面的 ?v=：vpn.negiao.cn 的 .css/.js 会被 CF 按扩展名
        缓存 7 天（Cache Static Assets 规则），只有换 URL 才能让读者立刻拿到新版 -->
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
